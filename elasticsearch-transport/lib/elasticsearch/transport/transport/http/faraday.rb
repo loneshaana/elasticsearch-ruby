@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+require 'aws-sigv4'
 
 module Elasticsearch
   module Transport
@@ -45,10 +46,27 @@ module Elasticsearch
                           headers
                         end
 
+              signer = Aws::Sigv4::Signer.new(
+                service: 'es',
+                region: 'ap-southeast-1',
+                # static credentials
+                access_key_id: ENV['ACCESS_KEY_ID'],
+                secret_access_key: ENV['SECRET_ACCESS_KEY'],
+                session_token:ENV['SESSION_TOKEN']
+              )
+               puts("Generated the aws signer")
+               request = signer.sign_request({
+                                              http_method: method.downcase.to_sym,
+                                              url:url,
+                                              body:( body ? __convert_to_json(body) : nil ),
+                                              headers:headers
+                                            })
+
+              puts("Invoke the Request")
               response = connection.connection.run_request(method.downcase.to_sym,
                                                            url,
                                                            ( body ? __convert_to_json(body) : nil ),
-                                                           headers)
+                                                           request.headers)
 
               Response.new response.status, decompress_response(response.body), response.headers
             end
